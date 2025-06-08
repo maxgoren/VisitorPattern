@@ -14,6 +14,7 @@ class StatementNode;
 
 class ProgramStatement;
 class StatementList;
+class ParameterList;
 class PrintStatement;
 class WhileStatement;
 class DefStatement;
@@ -26,6 +27,7 @@ class UnaryExpression;
 class RelOpExpression;
 class AssignExpression;
 class BooleanExpression;
+class FunctionCall;
 
 //Abstract Visitor Interface
 class Visitor {
@@ -36,6 +38,7 @@ class Visitor {
         virtual void visit(ExprStatement* es) = 0;
         virtual void visit(ProgramStatement* ps) = 0;
         virtual void visit(StatementList* sl) = 0;
+        virtual void visit(ParameterList* pl) = 0;
         virtual void visit(IfStatement* is) = 0;
         virtual void visit(DefStatement* ds) = 0;
         //virtual void visit(ExpressionNode* expr) = 0;
@@ -46,6 +49,7 @@ class Visitor {
         virtual void visit(RelOpExpression* relexpr) = 0;
         virtual void visit(BooleanExpression* boolexpr) = 0;
         virtual void visit(UnaryExpression* unaryexpr) = 0;
+        virtual void visit(FunctionCall* func) = 0;
 };
 
 //Base AST Class
@@ -64,12 +68,14 @@ class ASTNode {
 class ExpressionNode : public ASTNode {
     public:
         ExpressionNode(Token tok) : ASTNode(tok) { }
+        virtual ~ExpressionNode() { }
 };
 
 //Base Stmt Class
 class StatementNode : public ASTNode {
     public:
         StatementNode(Token tok) : ASTNode(tok) { }
+        virtual ~StatementNode() { }
 };
 
 class StatementList : StatementNode {
@@ -80,8 +86,23 @@ class StatementList : StatementNode {
         list<StatementNode*>& getStatements() { return statements; }
         void addStatement(StatementNode* stmt) { statements.push_back(stmt); }
         void accept(Visitor* visit) { visit->visit(this); }
+        ~StatementList() {
+            for (StatementNode* stmt : statements) {
+                delete stmt;
+            }
+        }
 };
 
+class ParameterList : public StatementNode {
+    private:
+        list<StatementNode*> params;
+    public:
+        ParameterList(Token token) : StatementNode(token) { }
+        list<StatementNode*> getParams() { return params; }
+        void setParams(list<StatementNode*>& p) { params = p; }
+        void add(StatementNode* sn) { params.push_back(sn); }
+        void accept(Visitor* visitor) { visitor->visit(this); }
+};
 
 class ProgramStatement : public StatementNode {
     private:
@@ -92,6 +113,9 @@ class ProgramStatement : public StatementNode {
         StatementList* getStatement() { return statementList; }
         void accept(Visitor* visitor) {
             visitor->visit(this);
+        }
+        ~ProgramStatement() {
+            delete statementList;
         }
 };
 
@@ -104,6 +128,9 @@ class PrintStatement : public StatementNode {
         ExpressionNode* getExpression() { return expression; }
         void accept(Visitor* visitor) {
             visitor->visit(this);
+        }
+        ~PrintStatement() {
+            delete expression;
         }
 };
 
@@ -119,6 +146,10 @@ class WhileStatement : public StatementNode {
         StatementList* getLoopBody() { return body; }
         void accept(Visitor* visitor) {
             visitor->visit(this);
+        }
+        ~WhileStatement() {
+            delete testExpr;
+            delete body;
         }
 };
 
@@ -138,18 +169,33 @@ class IfStatement : public StatementNode {
         void accept(Visitor* visitor) {
            visitor->visit(this);
         }
+        ~IfStatement() {
+            delete testExpr;
+            delete trCase;
+            delete faCase;
+        }
 };
+
 class DefStatement : public StatementNode {
     private:
         string name;
-        StatementList* params;
+        ParameterList* params;
         StatementList* body;
     public:
         DefStatement(Token tk) : StatementNode(tk) { }
-        StatementList* getParams() { return params; }
+        ParameterList* getParams() { return params; }
         StatementList* getBody() { return body; }
-        void setParams(StatementList* sl) { params = sl; }
-        
+        string getName() { return name; }
+        void setParams(ParameterList* sl) { params = sl; }
+        void setBody(StatementList* sl) { body = sl; }
+        void setName(string nm) { name = nm; }
+        void accept(Visitor* visitor) {
+            visitor->visit(this);
+        }
+        ~DefStatement() {
+            delete params;
+            delete body;
+        }
 };
 
 class ExprStatement : public StatementNode {
@@ -162,22 +208,22 @@ class ExprStatement : public StatementNode {
         void accept(Visitor* visitor) {
             visitor->visit(this);
         }
+        ~ExprStatement() {
+            delete expr;
+        }
 };
 
 class IdExpression : public ExpressionNode {
-    private:
-
     public:
         IdExpression(Token token) : ExpressionNode(token) { }
         string getId() { return getToken().lexeme; }
         void accept(Visitor* visitor) {
             visitor->visit(this);
         }
+        ~IdExpression() { }
 };
 
 class LiteralExpression : public ExpressionNode {
-    private:
-
     public:
         LiteralExpression(Token token) : ExpressionNode(token) { }
         Object eval(Environment& e) { 
@@ -189,6 +235,7 @@ class LiteralExpression : public ExpressionNode {
         void accept(Visitor* visitor) {
             visitor->visit(this);
         }
+        ~LiteralExpression() { }
 };
 
 class BooleanExpression : public ExpressionNode {
@@ -198,6 +245,7 @@ class BooleanExpression : public ExpressionNode {
         void accept(Visitor* visitor) {
             visitor->visit(this);
         }
+        ~BooleanExpression() { }
 };
 
 class UnaryExpression : public ExpressionNode {
@@ -208,6 +256,9 @@ class UnaryExpression : public ExpressionNode {
         void setLeft(ExpressionNode* expr) { left = expr; }
         ExpressionNode* getLeft() { return left; }
         void accept(Visitor* visitor) { visitor->visit(this); }
+        ~UnaryExpression() {
+            delete left;
+        }
 };
 
 class BinaryExpression : public ExpressionNode {
@@ -222,6 +273,10 @@ class BinaryExpression : public ExpressionNode {
         ExpressionNode* getRight() { return right; }
         void accept(Visitor* visitor) {
             visitor->visit(this);
+        }
+        ~BinaryExpression() {
+            delete left;
+            delete right;
         }
 };
 
@@ -238,6 +293,10 @@ class RelOpExpression : public ExpressionNode {
         void accept(Visitor* visitor) {
             visitor->visit(this);
         }
+        ~RelOpExpression() {
+            delete left;
+            delete right;
+        }
 };
 
 class AssignExpression : public ExpressionNode {
@@ -253,210 +312,23 @@ class AssignExpression : public ExpressionNode {
         void accept(Visitor* visitor) {
             visitor->visit(this);
         }
+        ~AssignExpression() {
+            delete left;
+            delete right;
+        }
 };
 
-class PrintVisitor : public Visitor {
+class FunctionCall : public ExpressionNode {
     private:
-        int d;
-        void enter(string s = "") {
-            ++d;
-            say(s);
-        }
-        void leave(string s = "") {
-            --d;
-        }
-        void say(string s) {
-            for (int i = 0; i < d; i++) {
-                cout<<" ";
-            }
-            cout<<s<<endl;
-        }
+        IdExpression* name;
+        list<ExpressionNode*> arguments;
     public:
-        void visit(StatementList* sl) override {
-            for (auto m : sl->getStatements()) {
-                m->accept(this);
-            }
-        }
-        void visit(ProgramStatement* ps) override {
-            enter("Program");
-            ps->getStatement()->accept(this);
-            leave();
-        }
-        void visit(PrintStatement* ps) override {
-            enter("print statement");
-            ps->getExpression()->accept(this);
-            leave();
-        }
-        void visit(WhileStatement* ws) override {
-            enter("While statement");
-            ws->getTestExpr()->accept(this);
-            ws->getLoopBody()->accept(this);
-            leave();
-        }
-        void visit(IfStatement* is) override {
-            enter("if statement");
-            is->getTest()->accept(this);
-            is->getPassCase()->accept(this);
-            is->getFailCase()->accept(this);
-            leave();
-        }
-        void visit(ExprStatement* es) override {
-            enter("Expr Statement");
-            if (es->getExpression() != nullptr)
-                es->getExpression()->accept(this);
-            leave();
-        }
-        void visit(IdExpression* idexpr) override {
-            enter("Id Expression");
-            cout<<idexpr->getToken().lexeme<<endl;
-            leave();
-        }
-        void visit(LiteralExpression* lit) override {
-            enter("Literal Expression");
-            cout<<lit->getToken().lexeme<<endl;
-            leave();
-        }
-        void visit(AssignExpression* assign) override {
-            enter("Assignment Expression");
-            assign->getLeft()->accept(this);
-            assign->getRight()->accept(this);
-            leave();
-        }
-        void visit(BinaryExpression* bin) override {
-            enter("Binary Expression");
-            cout<<bin->getToken().lexeme<<endl;
-            bin->getLeft()->accept(this);
-            bin->getRight()->accept(this);
-            leave();
-        }
-        void visit(UnaryExpression* unary) override {
-            enter("unary expr");
-            cout<<unary->getToken().lexeme<<endl;
-            unary->getLeft()->accept(this);
-            leave();
-        }
-         void visit(RelOpExpression* rel) override {
-            enter("Relop Expression");
-            rel->getLeft()->accept(this);
-            rel->getRight()->accept(this);
-            leave();
-        }
-        void visit(BooleanExpression* boo) override {
-            enter("Boolean Constant");
-            cout<<boo->getToken().lexeme<<endl;
-            leave();
-        }
-        void visit(DefStatement* ds) override {
-
-        }
-}; 
-
-class Interpreter : public Visitor {
-    private:
-        Environment env;
-        Object nilObject;
-        Object operands[31337];
-        int n = 0;
-        void push(Object e) {
-            operands[n++] = e;
-        }
-        Object pop() {
-            if (n > 0)
-                return operands[--n];
-            cout<<"Stack underflow."<<endl;
-            return nilObject;
-        }
-        Object peek(int k) {
-            return operands[(n-1)-k];
-        }
-    public:
-        void visit(StatementList* sl) override {
-            for (auto m : sl->getStatements()) {
-                m->accept(this);
-            }
-        }
-        void visit(ProgramStatement* ps) override {
-            ps->getStatement()->accept(this);
-        }
-        void visit(PrintStatement* ps) override {
-            ps->getExpression()->accept(this);
-            cout<<pop()<<endl;
-        }
-        void visit(WhileStatement* ws) override {
-            ExpressionNode* testExpr = ws->getTestExpr();
-            StatementList* stmt = ws->getLoopBody();
-            for (;;) {
-                testExpr->accept(this);
-                if (pop().boolval) {
-                    stmt->accept(this);
-                } else break;
-            }
-        }
-        void visit(IfStatement* is) override {
-            is->getTest()->accept(this);
-            if (pop().boolval) {
-                is->getPassCase()->accept(this);
-            } else {
-                is->getFailCase()->accept(this);
-            }
-        }
-        void visit(ExprStatement* es) override {
-            if (es->getExpression() != nullptr)
-                es->getExpression()->accept(this);
-        }
-        void visit(UnaryExpression* unary) override {
-            unary->getLeft()->accept(this);
-            Object t = pop();
-            t.numval = -t.numval;
-            push(t);
-        }
-        void visit(IdExpression* idexpr) override {
-            push(env[idexpr->getId()]);
-        }
-        void visit(LiteralExpression* lit) override {
-            push(Object(lit->eval(env)));
-        }
-        void visit(AssignExpression* assign) override {
-            string id = assign->getLeft()->getId();
-            assign->getRight()->accept(this);
-            env[id] = pop();
-        }
-        void visit(BinaryExpression* bin) override {
-            bin->getLeft()->accept(this);
-            bin->getRight()->accept(this);
-            Object rhs = pop();
-            Object lhs = pop();
-            switch (bin->getToken().type) {
-                case TK_PLUS:  push(add(lhs,rhs)); break;
-                case TK_MINUS: push(sub(lhs,rhs)); break;
-                case TK_MULT:  push(mul(lhs,rhs)); break;
-                case TK_DIV:   push(div(lhs,rhs)); break;
-                default:
-                    break;
-            }
-        }
-        void visit(RelOpExpression* rel) override {
-            rel->getLeft()->accept(this);
-            rel->getRight()->accept(this);
-            Object rhs = pop();
-            Object lhs = pop();
-            switch (rel->getToken().type) {
-                case TK_EQU: push(eq(lhs, rhs)); break;
-                case TK_NEQ: push(neq(lhs,rhs)); break;
-                case TK_LT: push(lt(lhs, rhs)); break;
-                case TK_GT: push(gt(rhs, lhs)); break;
-                case TK_LTE: push(lte(lhs, rhs)); break;
-                case TK_GTE: push(gte(rhs, lhs)); break;
-                default:
-                    break;
-            }
-        }
-        void visit(BooleanExpression* boo) override {
-            push(boo->eval(env));
-        }
-        void visit(DefStatement* ds) override {
-
-        }
+        FunctionCall(Token tok) : ExpressionNode(tok) { }
+        void setName(IdExpression* expr) { name = expr; }
+        void setArgs(list<ExpressionNode*> args) { arguments = args; }
+        IdExpression* getName() { return name; }
+        list<ExpressionNode*>& getArgs() { return arguments; }
+        void accept(Visitor* visitor) { visitor->visit(this); }
 };
 
 

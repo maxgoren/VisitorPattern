@@ -4,8 +4,10 @@
 using namespace std;
 
 enum ObjectType {
-    NUMBER, STRING, BOOL, NIL
+    NUMBER, STRING, BOOL, FUNCTION, NIL
 };
+
+struct Function;
 
 struct Object {
     ObjectType type;
@@ -13,10 +15,12 @@ struct Object {
         double numval;
         bool boolval;
         std::string* stringval;
+        Function* func;
     };
     Object(double v) : type(NUMBER) { numval = v; }
     Object(bool v) : type(BOOL) { boolval = v; }
     Object(string v) : type(STRING) { stringval = new string(v); }
+    Object(Function* fn) : type(FUNCTION), func(fn) { }
     Object() : type(NIL), numval(0.0) { }
     Object(const Object& ob) { 
         type = ob.type; 
@@ -24,6 +28,7 @@ struct Object {
             case NUMBER: numval = ob.numval; break;
             case BOOL: boolval = ob.boolval; break;
             case STRING: stringval = ob.stringval; break;
+            case FUNCTION: func = ob.func; break;
             default: break;
         }
     }
@@ -35,6 +40,7 @@ struct Object {
                 case NUMBER: numval = ob.numval; break;
                 case BOOL: boolval = ob.boolval; break;
                 case STRING: stringval = ob.stringval; break;
+                case FUNCTION: func = ob.func; break;
                 default: break;
             }
         }
@@ -132,6 +138,7 @@ std::ostream& operator<<(ostream& os, const Object& ob) {
         case NUMBER: os<<ob.numval; break;
         case BOOL: os<<(ob.boolval ? "true":"false"); break;
         case STRING: os<<*ob.stringval; break;
+        case FUNCTION: os<<"(func)"; break;
         case NIL: os<<"nil"; break;
         default: break;
     }

@@ -5,6 +5,7 @@
 #include <list>
 #include "token.hpp"
 #include "syntaxtree.hpp"
+#include "visitors.hpp"
 using namespace std;
 
 /*
@@ -20,9 +21,10 @@ using namespace std;
     <relop>   := <term> ( == | != | < | > | <= | >= ) <term>
     <term>    := <factor> (+|-) <factor>
     <factor>  := <val> (*|/) <val>
-    <val>    := -<primary>
+    <unop>    := -<val>
+    <val>     := id '(' argsList ')'
     <primary> := number | id | string | (<expr>)
-
+    <argList> := <expression> { ',' <expression> }*
  */
 
 class Parser {
@@ -82,23 +84,44 @@ class Parser {
             return nullptr;
         }
         ExpressionNode* val() {
+            ExpressionNode* node = primary();
+            while (expect(TK_LPAREN)) {
+                FunctionCall* m = new FunctionCall(current());
+                match(TK_LPAREN);
+                m->setName(dynamic_cast<IdExpression*>(node));
+                m->setArgs(argsList());
+                match(TK_RPAREN);
+                node = m;
+            }
+            return node;
+        }
+        list<ExpressionNode*> argsList() {
+            list<ExpressionNode*> args;
+            args.push_back(expression());
+            while (expect(TK_COMA) && !expect(TK_RPAREN)) {
+                match(TK_COMA);
+                args.push_back(expression());
+            }
+            return args;
+        }
+        ExpressionNode* unaryop() {
             ExpressionNode* node;
             if (expect(TK_MINUS)) {
                 UnaryExpression* node = new UnaryExpression(current());
                 match(TK_MINUS);
-                node->setLeft(val());
+                node->setLeft(unaryop());
                 return node;
             }
-            node = primary();
+            node = val();
             return node;
         }
         ExpressionNode* factor() {
-            ExpressionNode* node = val();
+            ExpressionNode* node = unaryop();
             while (expect(TK_MULT) || expect(TK_DIV)) {
                 BinaryExpression* bin = new BinaryExpression(current());
                 match(current().type);
                 bin->setLeft(node);
-                bin->setRight(val());
+                bin->setRight(unaryop());
                 node = bin;
             }
             return node;
@@ -154,10 +177,12 @@ class Parser {
                     match(TK_LCURLY);
                     is->setPassCase(statementList());
                     match(TK_RCURLY);
-                    match(TK_ELSE);
-                    match(TK_LCURLY);
-                    is->setFailCase(statementList());
-                    match(TK_RCURLY);
+                    if (expect(TK_ELSE)) {
+                        match(TK_ELSE);
+                        match(TK_LCURLY);
+                        is->setFailCase(statementList());
+                        match(TK_RCURLY);
+                    }
                     return is;
                 } break;
                 case TK_WHILE: {
@@ -171,12 +196,35 @@ class Parser {
                     match(TK_RCURLY);
                     return ws;
                 } break;
+                case TK_DEFINE: {
+                    DefStatement* ds = new DefStatement(current());
+                    match(TK_DEFINE);
+                    ds->setName(current().lexeme);
+                    match(TK_ID);
+                    match(TK_LPAREN);
+                    if (!expect(TK_RPAREN)) {
+                        ds->setParams(parameterList());
+                    }
+                    match(TK_RPAREN);
+                    match(TK_LCURLY);
+                    ds->setBody(statementList());
+                    return ds;
+                } break;
                 default:
                     ExprStatement* stmt = new ExprStatement(current());
                     stmt->setExpr(expression());
                     return stmt;
             }
             return stmt;
+        }
+        ParameterList* parameterList() {
+            ParameterList* pl = new ParameterList(current());
+            pl->add(statement());
+            while (expect(TK_COMA) && !expect(TK_RPAREN)) {
+                match(TK_COMA);
+                pl->add(statement());
+            }
+            return pl;
         }
         StatementList* statementList() {
             auto tk = current();

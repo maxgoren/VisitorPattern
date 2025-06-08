@@ -86,6 +86,7 @@ class Lexer {
                 case '*': return Token(TK_MULT, "*");
                 case '/': return Token(TK_DIV, "/");
                 case ';': return Token(TK_SEMI, ";");
+                case ',': return Token(TK_COMA, ",");
                 case '<': {
                     advance();
                     if (get() == '=') {
