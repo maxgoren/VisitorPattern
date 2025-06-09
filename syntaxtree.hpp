@@ -17,7 +17,8 @@ class StatementList;
 class ParameterList;
 class PrintStatement;
 class WhileStatement;
-class DefStatement;
+class FuncDefStatement;
+class ReturnStatement;
 class IfStatement;
 class ExprStatement;
 class LiteralExpression;
@@ -32,7 +33,6 @@ class FunctionCall;
 //Abstract Visitor Interface
 class Visitor {
     public:
-        //virtual void visit(StatementNode* sn) = 0;
         virtual void visit(PrintStatement* ps) = 0;
         virtual void visit(WhileStatement* ws) = 0;
         virtual void visit(ExprStatement* es) = 0;
@@ -40,8 +40,8 @@ class Visitor {
         virtual void visit(StatementList* sl) = 0;
         virtual void visit(ParameterList* pl) = 0;
         virtual void visit(IfStatement* is) = 0;
-        virtual void visit(DefStatement* ds) = 0;
-        //virtual void visit(ExpressionNode* expr) = 0;
+        virtual void visit(FuncDefStatement* ds) = 0;
+        virtual void visit(ReturnStatement* rs) = 0;
         virtual void visit(IdExpression* idexpr) = 0;
         virtual void visit(LiteralExpression* litexpr) = 0;
         virtual void visit(AssignExpression* assignExpr) = 0;
@@ -176,13 +176,13 @@ class IfStatement : public StatementNode {
         }
 };
 
-class DefStatement : public StatementNode {
+class FuncDefStatement : public StatementNode {
     private:
         string name;
         ParameterList* params;
         StatementList* body;
     public:
-        DefStatement(Token tk) : StatementNode(tk) { }
+        FuncDefStatement(Token tk) : StatementNode(tk) { }
         ParameterList* getParams() { return params; }
         StatementList* getBody() { return body; }
         string getName() { return name; }
@@ -192,11 +192,21 @@ class DefStatement : public StatementNode {
         void accept(Visitor* visitor) {
             visitor->visit(this);
         }
-        ~DefStatement() {
+        ~FuncDefStatement() {
             delete params;
             delete body;
         }
 };
+
+class ReturnStatement : public StatementNode {
+    private:
+        ExpressionNode* retVal;
+    public:
+        ReturnStatement(Token tk) : StatementNode(tk) { }
+        void setRetVal(ExpressionNode* expr) { retVal = expr; }
+        ExpressionNode* getRetVal() { return retVal; }
+        void accept(Visitor* visitor) { visitor->visit(this); }
+ };
 
 class ExprStatement : public StatementNode {
     private:
@@ -231,6 +241,7 @@ class LiteralExpression : public ExpressionNode {
                 case TK_NUMBER: return Object(std::stod(getToken().lexeme));
                 case TK_STRING: return Object(getToken().lexeme);
             }
+            return Object();
         }
         void accept(Visitor* visitor) {
             visitor->visit(this);

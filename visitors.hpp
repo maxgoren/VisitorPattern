@@ -5,6 +5,7 @@
 #include "token.hpp"
 #include "syntaxtree.hpp"
 using namespace std;
+
 class PrintVisitor : public Visitor {
     private:
         int d;
@@ -47,8 +48,9 @@ class PrintVisitor : public Visitor {
             enter("if statement");
             is->getTest()->accept(this);
             is->getPassCase()->accept(this);
-            if (is->getFailCase() != nullptr)
+            if (is->getFailCase() != nullptr) {
                 is->getFailCase()->accept(this);
+            }
             leave();
         }
         void visit(ExprStatement* es) override {
@@ -59,12 +61,12 @@ class PrintVisitor : public Visitor {
         }
         void visit(IdExpression* idexpr) override {
             enter("Id Expression");
-            cout<<idexpr->getToken().lexeme<<endl;
+            say(idexpr->getToken().lexeme);
             leave();
         }
         void visit(LiteralExpression* lit) override {
             enter("Literal Expression");
-            cout<<lit->getToken().lexeme<<endl;
+            say(lit->getToken().lexeme);
             leave();
         }
         void visit(AssignExpression* assign) override {
@@ -75,29 +77,30 @@ class PrintVisitor : public Visitor {
         }
         void visit(BinaryExpression* bin) override {
             enter("Binary Expression");
-            cout<<bin->getToken().lexeme<<endl;
+            say(bin->getToken().lexeme);
             bin->getLeft()->accept(this);
             bin->getRight()->accept(this);
             leave();
         }
         void visit(UnaryExpression* unary) override {
             enter("unary expr");
-            cout<<unary->getToken().lexeme<<endl;
+            say(unary->getToken().lexeme);
             unary->getLeft()->accept(this);
             leave();
         }
          void visit(RelOpExpression* rel) override {
             enter("Relop Expression");
+            say(rel->getToken().lexeme);
             rel->getLeft()->accept(this);
             rel->getRight()->accept(this);
             leave();
         }
         void visit(BooleanExpression* boo) override {
             enter("Boolean Constant");
-            cout<<boo->getToken().lexeme<<endl;
+            say(boo->getToken().lexeme);
             leave();
         }
-        void visit(DefStatement* ds) override {
+        void visit(FuncDefStatement* ds) override {
             enter("Function Definition");
             say(ds->getName());
             ds->getParams()->accept(this);
@@ -119,6 +122,11 @@ class PrintVisitor : public Visitor {
             }
             leave();
         }
+        void visit(ReturnStatement* rs) {
+            enter("return statement");
+            rs->getRetVal()->accept(this);
+            leave();
+        }
 }; 
 
 class Function {
@@ -135,6 +143,7 @@ class Function {
 
 class Interpreter : public Visitor {
     private:
+        bool bailout;
         vector<Environment> envs;
         Environment env;
         Object nilObject;
@@ -152,6 +161,8 @@ class Interpreter : public Visitor {
         Object peek(int k) {
             return operands[(n-1)-k];
         }
+        /* This is quite possibly *the* least efficient way of doing this, 
+           it is quite literally for demonstration purposes only. */
         void openScope() {
             envs.push_back(env);
             env = Environment();
@@ -166,6 +177,9 @@ class Interpreter : public Visitor {
         void visit(StatementList* sl) override {
             for (auto m : sl->getStatements()) {
                 m->accept(this);
+                if (bailout) {
+                    break;
+                }
             }
         }
         void visit(ProgramStatement* ps) override {
@@ -259,8 +273,12 @@ class Interpreter : public Visitor {
         void visit(BooleanExpression* boo) override {
             push(boo->eval(env));
         }
-        void visit(DefStatement* ds) override {
+        void visit(FuncDefStatement* ds) override {
             env[ds->getName()] = Object(new Function(ds->getName(), ds->getParams(), ds->getBody()));
+        }
+        void visit(ReturnStatement* rs) override {
+            rs->getRetVal()->accept(this);
+            bailout = true;
         }
         void visit(ParameterList* pl) override {
             
@@ -280,7 +298,9 @@ class Interpreter : public Visitor {
                 ait++;
                 pit++;
             }
+            bailout = false;
             func->getBody()->accept(this);
+            bailout = false;
             closeScope();
         }
 };

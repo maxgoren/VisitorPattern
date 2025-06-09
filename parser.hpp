@@ -159,56 +159,71 @@ class Parser {
             }
             return node;
         }
+        IfStatement* parseIf() {
+            IfStatement* is = new IfStatement(current());
+            match(TK_IF);
+            match(TK_LPAREN);
+            is->setTestExpr(expression());
+            match(TK_RPAREN);
+            match(TK_LCURLY);
+            is->setPassCase(statementList());
+            match(TK_RCURLY);
+            if (expect(TK_ELSE)) {
+                match(TK_ELSE);
+                match(TK_LCURLY);
+                is->setFailCase(statementList());
+                match(TK_RCURLY);
+            } else is->setFailCase(nullptr);
+            return is;
+        }
+        WhileStatement* parseWhile() {
+            WhileStatement* ws = new WhileStatement(current());
+            match(TK_WHILE);
+            match(TK_LPAREN);
+            ws->setTestExpr(expression());
+            match(TK_RPAREN);
+            match(TK_LCURLY);
+            ws->setLoopBody(statementList());
+            match(TK_RCURLY);
+            return ws;
+        }
+        FuncDefStatement* parseFuncDef() {
+            FuncDefStatement* ds = new FuncDefStatement(current());
+            match(TK_DEFINE);
+            ds->setName(current().lexeme);
+            match(TK_ID);
+            match(TK_LPAREN);
+            if (!expect(TK_RPAREN)) {
+                ds->setParams(parameterList());
+            }
+            match(TK_RPAREN);
+            match(TK_LCURLY);
+            ds->setBody(statementList());
+            return ds;
+        }
         StatementNode* statement() {
             StatementNode* stmt;
             switch (current().type) {
+                case TK_IF: {
+                    return parseIf();
+                } break;
+                case TK_WHILE: {
+                    return parseWhile();
+                } break;
+                case TK_DEFINE: {
+                    return parseFuncDef();
+                } break;
+                case TK_RETURN: {
+                    ReturnStatement* rs = new ReturnStatement(current());
+                    match(TK_RETURN);
+                    rs->setRetVal(expression());
+                    return rs;
+                } break;
                 case TK_PRINT: {
                     PrintStatement* ps = new PrintStatement(current());
                     match(current().type);
                     ps->setExpression(expression());
                     return ps;
-                } break;
-                case TK_IF: {
-                    IfStatement* is = new IfStatement(current());
-                    match(TK_IF);
-                    match(TK_LPAREN);
-                    is->setTestExpr(expression());
-                    match(TK_RPAREN);
-                    match(TK_LCURLY);
-                    is->setPassCase(statementList());
-                    match(TK_RCURLY);
-                    if (expect(TK_ELSE)) {
-                        match(TK_ELSE);
-                        match(TK_LCURLY);
-                        is->setFailCase(statementList());
-                        match(TK_RCURLY);
-                    }
-                    return is;
-                } break;
-                case TK_WHILE: {
-                    WhileStatement* ws = new WhileStatement(current());
-                    match(TK_WHILE);
-                    match(TK_LPAREN);
-                    ws->setTestExpr(expression());
-                    match(TK_RPAREN);
-                    match(TK_LCURLY);
-                    ws->setLoopBody(statementList());
-                    match(TK_RCURLY);
-                    return ws;
-                } break;
-                case TK_DEFINE: {
-                    DefStatement* ds = new DefStatement(current());
-                    match(TK_DEFINE);
-                    ds->setName(current().lexeme);
-                    match(TK_ID);
-                    match(TK_LPAREN);
-                    if (!expect(TK_RPAREN)) {
-                        ds->setParams(parameterList());
-                    }
-                    match(TK_RPAREN);
-                    match(TK_LCURLY);
-                    ds->setBody(statementList());
-                    return ds;
                 } break;
                 default:
                     ExprStatement* stmt = new ExprStatement(current());
