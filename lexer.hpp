@@ -146,6 +146,7 @@ class Lexer {
             reserved["else"] = Token(TK_ELSE, "else");
             reserved["def"] = Token(TK_DEFINE, "def");
             reserved["return"] = Token(TK_RETURN, "return");
+            reserved["var"] = Token(TK_VAR, "var");
         }
         vector<Token> lex(string line) {
             init(line);

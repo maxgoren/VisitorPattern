@@ -63,23 +63,23 @@ class Parser {
                 IdExpression* id = new IdExpression(current());
                 match(TK_ID);
                 return id;
-            } else if (expect(TK_LPAREN)) {
-                match(TK_LPAREN);
-                ExpressionNode* expr = expression();
-                match(TK_RPAREN);
-                return expr;
             } else if (expect(TK_TRUE)) {
-                BooleanExpression* be = new BooleanExpression(current());
+                LiteralExpression* be = new LiteralExpression(current());
                 match(TK_TRUE);
                 return be;
             } else if (expect(TK_FALSE)) {
-                BooleanExpression* be = new BooleanExpression(current());
+                LiteralExpression* be = new LiteralExpression(current());
                 match(TK_FALSE);
                 return be;
             } else if (expect(TK_STRING)) {
                 LiteralExpression* lit = new LiteralExpression(current());
                 match(TK_STRING);
                 return lit;
+            } else if (expect(TK_LPAREN)) {
+                match(TK_LPAREN);
+                ExpressionNode* expr = expression();
+                match(TK_RPAREN);
+                return expr;
             }
             return nullptr;
         }
@@ -94,15 +94,6 @@ class Parser {
                 node = m;
             }
             return node;
-        }
-        list<ExpressionNode*> argsList() {
-            list<ExpressionNode*> args;
-            args.push_back(expression());
-            while (expect(TK_COMA) && !expect(TK_RPAREN)) {
-                match(TK_COMA);
-                args.push_back(expression());
-            }
-            return args;
         }
         ExpressionNode* unaryop() {
             ExpressionNode* node;
@@ -202,7 +193,7 @@ class Parser {
             return ds;
         }
         StatementNode* statement() {
-            StatementNode* stmt;
+            StatementNode* stmt = nullptr;
             switch (current().type) {
                 case TK_IF: {
                     return parseIf();
@@ -212,6 +203,13 @@ class Parser {
                 } break;
                 case TK_DEFINE: {
                     return parseFuncDef();
+                } break;
+                case TK_VAR: {
+                    VarDefStatement* vd = new VarDefStatement(current());
+                    match(TK_VAR);
+                    vd->setName(current().lexeme);
+                    vd->setExpr(expression());
+                    return vd;
                 } break;
                 case TK_RETURN: {
                     ReturnStatement* rs = new ReturnStatement(current());
@@ -225,12 +223,26 @@ class Parser {
                     ps->setExpression(expression());
                     return ps;
                 } break;
-                default:
-                    ExprStatement* stmt = new ExprStatement(current());
-                    stmt->setExpr(expression());
-                    return stmt;
+                case TK_EOF: return nullptr; break;
+                default: {
+                    auto expr = expression();
+                    if (expr != nullptr) {
+                        ExprStatement* stmt = new ExprStatement(current());
+                        stmt->setExpr(expr);
+                        return stmt;
+                    }
+                }
             }
             return stmt;
+        }
+        list<ExpressionNode*> argsList() {
+            list<ExpressionNode*> args;
+            args.push_back(expression());
+            while (expect(TK_COMA) && !expect(TK_RPAREN)) {
+                match(TK_COMA);                                       
+                args.push_back(expression());
+            }
+            return args;
         }
         ParameterList* parameterList() {
             ParameterList* pl = new ParameterList(current());
@@ -244,10 +256,13 @@ class Parser {
         StatementList* statementList() {
             auto tk = current();
             list<StatementNode*> stmts;
-            stmts.push_back(statement());
+            StatementNode* stmt = statement();
+            if (stmt != nullptr)
+                stmts.push_back(stmt);
             while (!expect(TK_RCURLY) && !expect(TK_EOF)) {
                 if (expect(TK_SEMI)) match(TK_SEMI);
-                stmts.push_back(statement());
+                stmt = statement();
+                if (stmt != nullptr) stmts.push_back(stmt);
             }
             return new StatementList(tk, stmts);
         }

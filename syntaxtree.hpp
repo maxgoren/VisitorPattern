@@ -19,6 +19,7 @@ class PrintStatement;
 class WhileStatement;
 class FuncDefStatement;
 class ReturnStatement;
+class VarDefStatement;
 class IfStatement;
 class ExprStatement;
 class LiteralExpression;
@@ -27,7 +28,6 @@ class BinaryExpression;
 class UnaryExpression;
 class RelOpExpression;
 class AssignExpression;
-class BooleanExpression;
 class FunctionCall;
 
 //Abstract Visitor Interface
@@ -42,12 +42,12 @@ class Visitor {
         virtual void visit(IfStatement* is) = 0;
         virtual void visit(FuncDefStatement* ds) = 0;
         virtual void visit(ReturnStatement* rs) = 0;
+        virtual void visit(VarDefStatement* vd) = 0;
         virtual void visit(IdExpression* idexpr) = 0;
         virtual void visit(LiteralExpression* litexpr) = 0;
         virtual void visit(AssignExpression* assignExpr) = 0;
         virtual void visit(BinaryExpression* binexpr) = 0;
         virtual void visit(RelOpExpression* relexpr) = 0;
-        virtual void visit(BooleanExpression* boolexpr) = 0;
         virtual void visit(UnaryExpression* unaryexpr) = 0;
         virtual void visit(FunctionCall* func) = 0;
 };
@@ -111,9 +111,7 @@ class ProgramStatement : public StatementNode {
         ProgramStatement(Token token) : StatementNode(token) { }
         void setProgram(StatementList* sn) { statementList = sn; }
         StatementList* getStatement() { return statementList; }
-        void accept(Visitor* visitor) {
-            visitor->visit(this);
-        }
+        void accept(Visitor* visitor) { visitor->visit(this); }
         ~ProgramStatement() {
             delete statementList;
         }
@@ -126,9 +124,7 @@ class PrintStatement : public StatementNode {
         PrintStatement(Token token) : StatementNode(token) { }
         void setExpression(ExpressionNode* expr) { expression = expr; }
         ExpressionNode* getExpression() { return expression; }
-        void accept(Visitor* visitor) {
-            visitor->visit(this);
-        }
+        void accept(Visitor* visitor) { visitor->visit(this); }
         ~PrintStatement() {
             delete expression;
         }
@@ -144,9 +140,7 @@ class WhileStatement : public StatementNode {
         void setLoopBody(StatementList* stmt) { body = stmt; }
         ExpressionNode* getTestExpr() { return testExpr; }
         StatementList* getLoopBody() { return body; }
-        void accept(Visitor* visitor) {
-            visitor->visit(this);
-        }
+        void accept(Visitor* visitor) { visitor->visit(this); }
         ~WhileStatement() {
             delete testExpr;
             delete body;
@@ -166,14 +160,28 @@ class IfStatement : public StatementNode {
         StatementList* getPassCase() { return trCase; }
         StatementList* getFailCase() { return faCase; }
         ExpressionNode* getTest() { return testExpr; }
-        void accept(Visitor* visitor) {
-           visitor->visit(this);
-        }
+        void accept(Visitor* visitor) { visitor->visit(this); }
         ~IfStatement() {
             delete testExpr;
             delete trCase;
             delete faCase;
         }
+};
+
+class VarDefStatement : public StatementNode {
+    private:
+        string varname;
+        ExpressionNode* expr;
+        bool initialized;
+    public:
+        VarDefStatement(Token tk) : StatementNode(tk) { }
+        bool isInitialized() { return initialized; }
+        void setInitialized(bool v) { initialized = v; }
+        void setName(string n) { varname = n; }
+        string getName() { return varname; }
+        void setExpr(ExpressionNode* e) { expr = e; }
+        ExpressionNode* getExpr() { return expr; }
+        void accept(Visitor* visitor) { visitor->visit(this); }
 };
 
 class FuncDefStatement : public StatementNode {
@@ -189,9 +197,7 @@ class FuncDefStatement : public StatementNode {
         void setParams(ParameterList* sl) { params = sl; }
         void setBody(StatementList* sl) { body = sl; }
         void setName(string nm) { name = nm; }
-        void accept(Visitor* visitor) {
-            visitor->visit(this);
-        }
+        void accept(Visitor* visitor) { visitor->visit(this); }
         ~FuncDefStatement() {
             delete params;
             delete body;
@@ -215,21 +221,15 @@ class ExprStatement : public StatementNode {
         ExprStatement(Token token) : StatementNode(token) { }
         void setExpr(ExpressionNode* expression) { expr = expression; }
         ExpressionNode* getExpression() { return expr; }
-        void accept(Visitor* visitor) {
-            visitor->visit(this);
-        }
-        ~ExprStatement() {
-            delete expr;
-        }
+        void accept(Visitor* visitor) {visitor->visit(this); }
+        ~ExprStatement() { delete expr; }
 };
 
 class IdExpression : public ExpressionNode {
     public:
         IdExpression(Token token) : ExpressionNode(token) { }
         string getId() { return getToken().lexeme; }
-        void accept(Visitor* visitor) {
-            visitor->visit(this);
-        }
+        void accept(Visitor* visitor) { visitor->visit(this); }
         ~IdExpression() { }
 };
 
@@ -240,23 +240,14 @@ class LiteralExpression : public ExpressionNode {
             switch (getToken().type) {
                 case TK_NUMBER: return Object(std::stod(getToken().lexeme));
                 case TK_STRING: return Object(getToken().lexeme);
+                case TK_TRUE:   return Object(true);
+                case TK_FALSE:  return Object(false);
+                default: break;
             }
             return Object();
         }
-        void accept(Visitor* visitor) {
-            visitor->visit(this);
-        }
+        void accept(Visitor* visitor) { visitor->visit(this); }
         ~LiteralExpression() { }
-};
-
-class BooleanExpression : public ExpressionNode {
-    public:
-        BooleanExpression(Token tk) : ExpressionNode(tk) { }
-        bool eval(Environment& env) { return getToken().type == TK_TRUE ? true:false; }
-        void accept(Visitor* visitor) {
-            visitor->visit(this);
-        }
-        ~BooleanExpression() { }
 };
 
 class UnaryExpression : public ExpressionNode {
@@ -320,9 +311,7 @@ class AssignExpression : public ExpressionNode {
         void setRight(ExpressionNode* expr) { right = expr; }
         IdExpression* getLeft() { return left; }
         ExpressionNode* getRight() { return right; }
-        void accept(Visitor* visitor) {
-            visitor->visit(this);
-        }
+        void accept(Visitor* visitor) { visitor->visit(this); }
         ~AssignExpression() {
             delete left;
             delete right;

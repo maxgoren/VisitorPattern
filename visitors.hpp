@@ -6,6 +6,7 @@
 #include "syntaxtree.hpp"
 using namespace std;
 
+
 class PrintVisitor : public Visitor {
     private:
         int d;
@@ -18,7 +19,7 @@ class PrintVisitor : public Visitor {
         }
         void say(string s) {
             for (int i = 0; i < d; i++) {
-                cout<<" ";
+                cout<<"  ";
             }
             cout<<s<<endl;
         }
@@ -34,7 +35,7 @@ class PrintVisitor : public Visitor {
             leave();
         }
         void visit(PrintStatement* ps) override {
-            enter("print statement");
+            enter("Print statement");
             ps->getExpression()->accept(this);
             leave();
         }
@@ -95,11 +96,6 @@ class PrintVisitor : public Visitor {
             rel->getRight()->accept(this);
             leave();
         }
-        void visit(BooleanExpression* boo) override {
-            enter("Boolean Constant");
-            say(boo->getToken().lexeme);
-            leave();
-        }
         void visit(FuncDefStatement* ds) override {
             enter("Function Definition");
             say(ds->getName());
@@ -114,7 +110,7 @@ class PrintVisitor : public Visitor {
             }
             leave();
         }
-        void visit(FunctionCall* fc) {
+        void visit(FunctionCall* fc) override {
             enter("Function call");
             fc->getName()->accept(this);
             for (auto it : fc->getArgs()) {
@@ -122,9 +118,17 @@ class PrintVisitor : public Visitor {
             }
             leave();
         }
-        void visit(ReturnStatement* rs) {
+        void visit(ReturnStatement* rs) override {
             enter("return statement");
             rs->getRetVal()->accept(this);
+            leave();
+        }
+        void visit(VarDefStatement* vd) override {
+            enter("Variable Definition");
+            say(vd->getName());
+            if (vd->getExpr() != nullptr) {
+                vd->getExpr()->accept(this);
+            }
             leave();
         }
 }; 
@@ -141,7 +145,7 @@ class Function {
         StatementList* getBody() { return body; }
 };
 
-class Interpreter : public Visitor {
+class InterpreterVisitor : public Visitor {
     private:
         bool bailout;
         vector<Environment> envs;
@@ -208,6 +212,12 @@ class Interpreter : public Visitor {
                     is->getFailCase()->accept(this);
             }
         }
+        void visit(VarDefStatement* vd) override {
+            env[vd->getName()] = nilObject;
+            if (vd->getExpr() != nullptr) {
+                vd->getExpr()->accept(this);
+            }
+        }
         void visit(ExprStatement* es) override {
             if (es->getExpression() != nullptr)
                 es->getExpression()->accept(this);
@@ -270,9 +280,6 @@ class Interpreter : public Visitor {
                     break;
             }
         }
-        void visit(BooleanExpression* boo) override {
-            push(boo->eval(env));
-        }
         void visit(FuncDefStatement* ds) override {
             env[ds->getName()] = Object(new Function(ds->getName(), ds->getParams(), ds->getBody()));
         }
@@ -292,7 +299,7 @@ class Interpreter : public Visitor {
             auto pit = paramsList.begin();
             openScope();
             while (ait != argsList.end() && pit != paramsList.end()) {
-                string id = (*pit)->getToken().lexeme;
+                string id = (dynamic_cast<VarDefStatement*>(*pit))->getName();
                 (*ait)->accept(this);
                 env[id] = pop();
                 ait++;
