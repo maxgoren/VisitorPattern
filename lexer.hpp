@@ -81,6 +81,8 @@ class Lexer {
                 case ')': return Token(TK_RPAREN, ")");
                 case '{': return Token(TK_LCURLY, "{");
                 case '}': return Token(TK_RCURLY, "}");
+                case '[': return Token(TK_LBRACK, "[");
+                case ']': return Token(TK_RBRACK, "]");
                 case '+': return Token(TK_PLUS, "+");
                 case '-': return Token(TK_MINUS, "-");
                 case '*': return Token(TK_MULT, "*");

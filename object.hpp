@@ -1,10 +1,11 @@
 #ifndef object_hpp
 #define object_hpp
 #include <iostream>
+#include <vector>
 using namespace std;
 
 enum ObjectType {
-    NUMBER, STRING, BOOL, FUNCTION, NIL
+    NUMBER, STRING, BOOL, FUNCTION, VECTOR, NIL
 };
 
 struct Function;
@@ -16,11 +17,13 @@ struct Object {
         bool boolval;
         std::string* stringval;
         Function* func;
+        vector<Object>* vec;
     };
     Object(double v) : type(NUMBER) { numval = v; }
     Object(bool v) : type(BOOL) { boolval = v; }
     Object(string v) : type(STRING) { stringval = new string(v); }
     Object(Function* fn) : type(FUNCTION), func(fn) { }
+    Object(vector<Object>* obj) : type(VECTOR), vec(obj) { }
     Object() : type(NIL), numval(0.0) { }
     Object(const Object& ob) { 
         type = ob.type; 
@@ -29,6 +32,7 @@ struct Object {
             case BOOL: boolval = ob.boolval; break;
             case STRING: stringval = ob.stringval; break;
             case FUNCTION: func = ob.func; break;
+            case VECTOR: vec = ob.vec; break;
             default: break;
         }
     }
@@ -41,6 +45,7 @@ struct Object {
                 case BOOL: boolval = ob.boolval; break;
                 case STRING: stringval = ob.stringval; break;
                 case FUNCTION: func = ob.func; break;
+                case VECTOR: vec = ob.vec; break;
                 default: break;
             }
         }
@@ -140,6 +145,13 @@ std::ostream& operator<<(ostream& os, const Object& ob) {
         case STRING: os<<*ob.stringval; break;
         case FUNCTION: os<<"(func)"; break;
         case NIL: os<<"nil"; break;
+        case VECTOR: {
+            os<<"vector, size="<<ob.vec->size()<<", { ";
+            for (auto m : *ob.vec) {
+                os<<m<<" ";
+            } 
+            cout<<"}";
+        } break;
         default: break;
     }
     return os;

@@ -26,6 +26,8 @@ class LiteralExpression;
 class IdExpression; 
 class BinaryExpression;
 class UnaryExpression;
+class ListExpression;
+class SubscriptExpression;
 class RelOpExpression;
 class AssignExpression;
 class FunctionCall;
@@ -50,6 +52,8 @@ class Visitor {
         virtual void visit(RelOpExpression* relexpr) = 0;
         virtual void visit(UnaryExpression* unaryexpr) = 0;
         virtual void visit(FunctionCall* func) = 0;
+        virtual void visit(ListExpression* le) = 0;
+        virtual void visit(SubscriptExpression* se) = 0;
 };
 
 //Base AST Class
@@ -250,6 +254,30 @@ class LiteralExpression : public ExpressionNode {
         ~LiteralExpression() { }
 };
 
+class ListExpression : public ExpressionNode {
+    private:
+        list<ExpressionNode*> exprs;
+    public:
+        ListExpression(Token tk) : ExpressionNode(tk) { }
+        void setExprsList(list<ExpressionNode*> l) { exprs = l; }
+        list<ExpressionNode*>& getExprsList() { return exprs; }
+        void addExpr(ExpressionNode* e) { exprs.push_back(e); }
+        void accept(Visitor* visitor) { visitor->visit(this); }
+};
+
+class SubscriptExpression : public ExpressionNode {
+    private:
+        IdExpression* name;
+        ExpressionNode* position;
+    public:
+        SubscriptExpression(Token tk) : ExpressionNode(tk) { }
+        void setName(IdExpression* expr) { name = expr; }
+        IdExpression* getName() { return name; }
+        void setPosition(ExpressionNode* expr) { position = expr; }
+        ExpressionNode* getPosition() { return position; }
+        void accept(Visitor* visit) { visit->visit(this); }
+};
+
 class UnaryExpression : public ExpressionNode {
     private:
         ExpressionNode* left;
@@ -303,13 +331,13 @@ class RelOpExpression : public ExpressionNode {
 
 class AssignExpression : public ExpressionNode {
     private:
-        IdExpression* left;
+        ExpressionNode* left;
         ExpressionNode* right;
     public:
         AssignExpression(Token tk) : ExpressionNode(tk) { }
-        void setLeft(IdExpression* expr) { left = expr; }
+        void setLeft(ExpressionNode* expr) { left = expr; }
         void setRight(ExpressionNode* expr) { right = expr; }
-        IdExpression* getLeft() { return left; }
+        ExpressionNode* getLeft() { return left; }
         ExpressionNode* getRight() { return right; }
         void accept(Visitor* visitor) { visitor->visit(this); }
         ~AssignExpression() {

@@ -3,24 +3,42 @@
 #include "lexer.hpp"
 using namespace std;
 
+class ASTBuilder {
+    private:
+        Lexer lexer;
+        Parser parser;
+        bool loud;
+    public:
+        ASTBuilder(bool debug = true) {
+            loud = debug;
+        }
+        ProgramStatement* buildAST(string input) {
+            auto tokens = lexer.lex(input);
+            if (loud) {
+                for (auto m : tokens) {
+                    cout<<"[ "<<tokenStr[m.type]<<", "<<m.lexeme<<" ]"<<endl;
+                }
+            }
+            return parser.parse(tokens);
+        }
+};
+
 void repl() {
     bool looping = true;
-    Lexer lexer;
-    Parser parser;
-    Environment env;
+    ASTBuilder builder;
     PrintVisitor pv;
     InterpreterVisitor iv;
     while (looping) {
         cout<<" > ";
         string input;
         getline(cin, input);
-        vector<Token> tokens = lexer.lex(input);
-        for (auto m : tokens) {
-            cout<<"[ "<<tokenStr[m.type]<<", "<<m.lexeme<<" ]"<<endl;
+        if (input == "quit") {
+            looping = false;
+        } else {
+            auto ast = builder.buildAST(input);
+            pv.visit(ast);
+            iv.visit(ast);
         }
-        auto t = parser.parse(tokens);
-        pv.visit(t);
-        iv.visit(t);
     }
 }
 

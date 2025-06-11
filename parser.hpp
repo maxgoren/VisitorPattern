@@ -80,11 +80,25 @@ class Parser {
                 ExpressionNode* expr = expression();
                 match(TK_RPAREN);
                 return expr;
+            } else if (expect(TK_LBRACK)) {
+                ListExpression* le = new ListExpression(current());
+                match(TK_LBRACK);
+                le->setExprsList(argsList());
+                match(TK_RBRACK);
+                return le;
             }
             return nullptr;
         }
         ExpressionNode* val() {
             ExpressionNode* node = primary();
+            while (expect(TK_LBRACK)) {
+                SubscriptExpression* se = new SubscriptExpression(current());
+                match (TK_LBRACK);
+                se->setName(dynamic_cast<IdExpression*>(node));
+                se->setPosition(expression());
+                match(TK_RBRACK);
+                node = se;
+            }
             while (expect(TK_LPAREN)) {
                 FunctionCall* m = new FunctionCall(current());
                 match(TK_LPAREN);
@@ -144,7 +158,9 @@ class Parser {
             if (expect(TK_ASSIGN)) {
                 AssignExpression* bin = new AssignExpression(current());
                 match(current().type);
-                bin->setLeft(new IdExpression(node->getToken()));
+                if (node->getToken().type == TK_RBRACK)
+                    bin->setLeft((SubscriptExpression*)node);
+                else bin->setLeft((IdExpression*)node);
                 bin->setRight(relop());
                 node = bin;
             }
@@ -238,7 +254,7 @@ class Parser {
         list<ExpressionNode*> argsList() {
             list<ExpressionNode*> args;
             args.push_back(expression());
-            while (expect(TK_COMA) && !expect(TK_RPAREN)) {
+            while (expect(TK_COMA) && !(expect(TK_RPAREN) || expect(TK_RBRACK))) {
                 match(TK_COMA);                                       
                 args.push_back(expression());
             }

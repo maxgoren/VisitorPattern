@@ -131,6 +131,20 @@ class PrintVisitor : public Visitor {
             }
             leave();
         }
+        void visit(ListExpression* le) override {
+            enter("list expression");
+            for (auto m : le->getExprsList()) {
+                if (m != nullptr)
+                    m->accept(this);
+            }
+            leave();
+        }
+        void visit(SubscriptExpression* se) override {
+            enter("subscript expression");
+            se->getName()->accept(this);
+            se->getPosition()->accept(this);
+            leave();
+        }
 }; 
 
 class Function {
@@ -165,7 +179,7 @@ class InterpreterVisitor : public Visitor {
         Object peek(int k) {
             return operands[(n-1)-k];
         }
-        /* This is quite possibly *the* least efficient way of doing this, 
+        /* This is quite possibly *the least* efficient way of doing this, 
            it is quite literally for demonstration purposes only. */
         void openScope() {
             envs.push_back(env);
@@ -246,9 +260,21 @@ class InterpreterVisitor : public Visitor {
             push(Object(lit->eval(env)));
         }
         void visit(AssignExpression* assign) override {
-            string id = assign->getLeft()->getId();
-            assign->getRight()->accept(this);
-            env[id] = pop();
+            string id = assign->getLeft()->getToken().lexeme;
+            if (id == "[") {
+                auto x = dynamic_cast<SubscriptExpression*>(assign->getLeft());
+                while (x->getName()->getId() == "[") x = dynamic_cast<SubscriptExpression*>(x->getName());
+                x->getName()->accept(this);
+                Object m = pop();
+                x->getPosition()->accept(this);
+                int pos = pop().numval;
+                assign->getRight()->accept(this);
+                Object ans = pop();
+                m.vec->at(pos) = ans;
+            } else {
+                assign->getRight()->accept(this);
+                env[id] = pop();
+            }
         }
         void visit(BinaryExpression* bin) override {
             bin->getLeft()->accept(this);
@@ -301,7 +327,7 @@ class InterpreterVisitor : public Visitor {
             while (ait != argsList.end() && pit != paramsList.end()) {
                 string id = (dynamic_cast<VarDefStatement*>(*pit))->getName();
                 (*ait)->accept(this);
-                env[id] = pop();
+                env.emplace(id,pop());
                 ait++;
                 pit++;
             }
@@ -309,6 +335,24 @@ class InterpreterVisitor : public Visitor {
             func->getBody()->accept(this);
             bailout = false;
             closeScope();
+        }
+        void visit(SubscriptExpression* se) override {
+            se->getName()->accept(this);
+            auto object = pop();
+            se->getPosition()->accept(this);
+            int position = pop().numval;
+            auto result = object.vec->at(position);
+            push(result);
+        }
+        void visit(ListExpression* le) override {
+            vector<Object>* vec = new vector<Object>();
+            for (auto m : le->getExprsList()) {
+                m->accept(this);
+                Object obj = pop();
+                cout<<obj<<endl;
+                vec->push_back(obj);
+            }
+            push(Object(vec));
         }
 };
 
